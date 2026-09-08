@@ -555,14 +555,14 @@ function toast(msg){
 
 async function loadData(){
   try{
-    const res = await window.storage.get('entries', false);
-    entries = res ? JSON.parse(res.value) : [];
+    const raw = localStorage.getItem('cr_entries');
+    entries = raw ? JSON.parse(raw) : [];
   }catch(e){
     entries = [];
   }
   try{
-    const res2 = await window.storage.get('sheetUrl', false);
-    sheetUrl = res2 ? res2.value : "";
+    const rawUrl = localStorage.getItem('cr_sheetUrl');
+    sheetUrl = rawUrl || "";
     document.getElementById('sheetUrlInput').value = sheetUrl;
   }catch(e){
     sheetUrl = "";
@@ -579,7 +579,7 @@ async function loadData(){
 
 async function saveEntries(){
   try{
-    await window.storage.set('entries', JSON.stringify(entries), false);
+    localStorage.setItem('cr_entries', JSON.stringify(entries));
   }catch(e){
     toast('সংরক্ষণে সমস্যা হয়েছে');
   }
@@ -600,17 +600,8 @@ function sendToSheet(entry){
 }
 
 function sendCalendarReminder(entry){
-  if(!sheetUrl) return;
-  fetch(sheetUrl, {
-    method:'POST',
-    mode:'no-cors',
-    headers:{'Content-Type':'text/plain'},
-    body: JSON.stringify({...entry, type:'calendar'})
-  }).then(()=>{
-    toast('গুগল ক্যালেন্ডারে রিমাইন্ডার সেট হয়েছে');
-  }).catch(()=>{
-    toast('ক্যালেন্ডার রিমাইন্ডার পাঠাতে সমস্যা হয়েছে');
-  });
+  // নোট: প্রকৃত গুগল ক্যালেন্ডার ইন্টিগ্রেশন নেই। আগে এটি একই শীটে
+  // ডুপ্লিকেট সারি পাঠাত বলে সেই আচরণ সরিয়ে দেওয়া হলো।
 }
 
 function renderReminders(){
@@ -961,7 +952,7 @@ document.getElementById('closeModal').onclick = () => {
 document.getElementById('saveSettings').onclick = async () => {
   sheetUrl = document.getElementById('sheetUrlInput').value.trim();
   try{
-    await window.storage.set('sheetUrl', sheetUrl, false);
+    localStorage.setItem('cr_sheetUrl', sheetUrl);
     toast('সেটিংস সংরক্ষণ হয়েছে');
   }catch(e){
     toast('সংরক্ষণে সমস্যা হয়েছে');

@@ -298,6 +298,30 @@ header h1{
   font-size:14px;color:var(--ink-soft);cursor:pointer;
 }
 
+.quote-box{
+  margin-top:18px;
+  background:linear-gradient(135deg,#F6F1E6,#EFE6CE);
+  border:1px solid var(--paper-line);
+  border-radius:14px;
+  padding:18px 18px 14px 18px;
+  box-shadow: 0 4px 16px rgba(34,48,31,0.08);
+  min-height:70px;
+}
+.quote-box .quote-text{
+  font-family:'Noto Serif Bengali', serif;
+  font-size:15px;
+  line-height:1.9;
+  color:var(--green-dark);
+  margin:0 0 10px 0;
+}
+.quote-box .quote-source{
+  font-size:12.5px;
+  color:var(--ink-soft);
+  text-align:right;
+  font-weight:600;
+  margin:0;
+}
+
 .toast{
   position:fixed;left:50%;bottom:20px;transform:translateX(-50%);
   background:var(--ink);color:#fff;padding:10px 16px;border-radius:20px;
@@ -444,6 +468,11 @@ header h1{
 
       <button class="btn-primary" id="addBtn">যোগ করুন</button>
     </div>
+
+    <div class="quote-box" id="quoteBox">
+      <p class="quote-text" id="quoteText"></p>
+      <p class="quote-source" id="quoteSource"></p>
+    </div>
   </div>
 
   <div id="pageList" class="page" style="display:none;">
@@ -525,6 +554,45 @@ header h1{
 let entries = [];
 let sheetUrl = "";
 let filterState = { type: 'none', date: null };
+
+const quotes = [
+  { text: "উত্তম কথা বলা অথবা চুপ থাকা মুমিনের বৈশিষ্ট্য।", source: "হাদিস" },
+  { text: "যে ব্যক্তি মানুষের প্রতি রহম করে না, আল্লাহও তার প্রতি রহম করেন না।", source: "হাদিস" },
+  { text: "তোমাদের মধ্যে সে-ই উত্তম, যে তার পরিবারের কাছে উত্তম।", source: "হাদিস" },
+  { text: "মুমিন একই গর্তে দুইবার পা দেয় না।", source: "হাদিস" },
+  { text: "হাসিমুখে ভাইয়ের সাথে সাক্ষাৎ করাও একটি সদকা।", source: "হাদিস" },
+  { text: "আল্লাহ তা'আলা তোমাদের চেহারা ও সম্পদের দিকে তাকান না, বরং তোমাদের অন্তর ও আমলের দিকে তাকান।", source: "হাদিস" },
+  { text: "যে কাজে দোয়া করা হয় না, সে কাজে বরকতও কম থাকে।", source: "উপদেশ" },
+  { text: "কষ্টের সাথেই স্বস্তি আছে।", source: "কুরআন" },
+  { text: "মানুষের মধ্যে সর্বোত্তম সে, যে অন্যের জন্য উপকারী।", source: "হাদিস" },
+  { text: "সততা মানুষকে নেক কাজের দিকে নিয়ে যায়, আর নেক কাজ জান্নাতের দিকে নিয়ে যায়।", source: "হাদিস" },
+  { text: "ছোটদের স্নেহ করো, বড়দের সম্মান করো।", source: "হাদিস" },
+  { text: "প্রতিবেশীর অধিকার আদায় করা ঈমানের অংশ।", source: "হাদিস" },
+  { text: "যে ব্যক্তি আল্লাহর ওপর ভরসা করে, তার জন্য তিনিই যথেষ্ট।", source: "কুরআন" },
+  { text: "সহজ কাজ করো, কঠিন করো না; সুসংবাদ দাও, বিতৃষ্ণ করো না।", source: "হাদিস" },
+  { text: "দান করলে সম্পদ কমে না, বরং বরকত বাড়ে।", source: "হাদিস" }
+];
+
+function renderQuote(){
+  const qt = document.getElementById('quoteText');
+  const qs = document.getElementById('quoteSource');
+  if(!qt || !qs) return;
+  const q = quotes[Math.floor(Math.random() * quotes.length)];
+  qt.textContent = '❝ ' + q.text + ' ❞';
+  qs.textContent = '— ' + q.source;
+}
+
+const ADMIN_PASSWORD = "1234"; // চাইলে এই পাসওয়ার্ডটি এখান থেকে পরিবর্তন করুন
+
+function checkAdminPassword(){
+  const pass = window.prompt('চালিয়ে যেতে পাসওয়ার্ড দিন:');
+  if(pass === null) return false;
+  if(pass !== ADMIN_PASSWORD){
+    toast('পাসওয়ার্ড সঠিক নয়');
+    return false;
+  }
+  return true;
+}
 
 function todayISO(){
   const d = new Date();
@@ -887,6 +955,7 @@ document.getElementById('exportBtn').onclick = () => {
 };
 
 document.getElementById('clearBtn').onclick = async () => {
+  if(!checkAdminPassword()) return;
   if(!confirm('সব তথ্য মুছে ফেলতে চান?')) return;
   entries = [];
   await saveEntries();
@@ -944,6 +1013,7 @@ document.getElementById('filterResetBtn').onclick = () => {
 };
 
 document.getElementById('gearBtn').onclick = () => {
+  if(!checkAdminPassword()) return;
   document.getElementById('settingsModal').classList.add('show');
 };
 document.getElementById('closeModal').onclick = () => {
@@ -1029,6 +1099,7 @@ function showPage(id){
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`.nav-btn[data-page="${id}"]`).classList.add('active');
   if(id === 'pageNotif') renderReminders();
+  if(id === 'pageHome') renderQuote();
 }
 document.querySelectorAll('.nav-btn').forEach(b => {
   b.onclick = () => showPage(b.dataset.page);
@@ -1041,6 +1112,7 @@ function updateNotifDot(){
 }
 
 loadData();
+renderQuote();
 </script>
 </body>
 </html>

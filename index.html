@@ -476,7 +476,10 @@ header h1{
   </div>
 
   <div id="pageList" class="page" style="display:none;">
-    <div class="list-title">তালিকা</div>
+    <div class="list-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>তালিকা</span>
+      <button id="syncListBtn" type="button" style="font-size:13px;padding:6px 12px;border-radius:20px;border:1.5px solid var(--green);background:#fff;color:var(--green);">🔄 সবার তালিকা আনুন</button>
+    </div>
 
     <div class="filter-bar">
       <div class="filter-chips">
@@ -536,6 +539,11 @@ header h1{
     <p style="margin-top:4px;">টাকা জমা নেওয়ার সাথে সাথে সদস্যের মোবাইলে SMS পাঠাতে চাইলে নিচে আপনার BulkSMSBD.com এর API Key এবং Sender ID বসান (bulksmsbd.net → Dashboard → API Key থেকে পাবেন)।</p>
     <input type="text" id="smsApiKeyInput" placeholder="API Key (যেমন: v2uDEu4FtMxb4XEwns6U)">
     <input type="text" id="smsSenderIdInput" placeholder="Sender ID (যেমন: 8809617621453)">
+    <p style="margin-top:4px;">উপরের তথ্য সংরক্ষণ করার পর, নিচে একটা নাম্বার দিয়ে টেস্ট করুন — নতুন ট্যাবে BulkSMSBD এর আসল উত্তর (Success/Error) দেখতে পাবেন, যা দিয়ে সমস্যাটা ধরা যাবে।</p>
+    <input type="text" id="smsTestMobileInput" placeholder="যেমন: 01712345678">
+    <div class="modal-btns">
+      <button id="testSmsBtn" style="background:#2F6F4E;color:#fff;">🧪 টেস্ট SMS পাঠান</button>
+    </div>
     <div class="modal-btns">
       <button id="closeModal">বাতিল</button>
       <button class="save" id="saveSettings">সংরক্ষণ করুন</button>
@@ -632,6 +640,11 @@ function todayISO(){
   return `${y}-${m}-${day}`;
 }
 
+function generateId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,10);
+}
+
 function toBnDigits(str){
   const map = {'0':'০','1':'১','2':'২','3':'৩','4':'৪','5':'৫','6':'৬','7':'৭','8':'৮','9':'৯'};
   return String(str).replace(/[0-9]/g, d => map[d]);
@@ -657,6 +670,7 @@ async function loadData(){
   }catch(e){
     entries = [];
   }
+  entries.forEach(e => { if(!e.id) e.id = generateId(); });
   try{
     const rawUrl = localStorage.getItem('cr_sheetUrl');
     sheetUrl = rawUrl || "";
@@ -674,6 +688,10 @@ async function loadData(){
     smsSenderId = "";
   }
   render();
+
+  if(sheetUrl){
+    fetchSharedEntries();
+  }
 
   if('Notification' in window && Notification.permission === 'granted'){
     const today = todayISO();
@@ -705,6 +723,29 @@ function sendToSheet(entry){
   });
 }
 
+async function fetchSharedEntries(showToast){
+  if(!sheetUrl){
+    if(showToast) toast('আগে "আরও" পেজে গুগল শীট URL বসান');
+    return;
+  }
+  try{
+    const res = await fetch(sheetUrl, { method: 'GET' });
+    if(!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    if(Array.isArray(data)){
+      data.forEach(e => { if(!e.id) e.id = generateId(); });
+      entries = data;
+      saveEntries();
+      render();
+      if(showToast) toast('সবার তালিকা আপডেট হয়েছে (' + entries.length + ' জন)');
+    } else if(showToast){
+      toast('গুগল শীট থেকে সঠিক তথ্য পাওয়া যায়নি');
+    }
+  }catch(e){
+    if(showToast) toast('সিঙ্ক করতে সমস্যা হয়েছে, ইন্টারনেট/URL চেক করুন');
+  }
+}
+
 function normalizeMobileForSms(mobile){
   let m = (mobile || '').replace(/[^0-9]/g, '');
   if(m.length === 11 && m.startsWith('01')) return '88' + m;
@@ -729,13 +770,13 @@ function sendSMS(entry, paidNow, remaining){
 
   const apiUrl = `https://bulksmsbd.net/api/smsapi?api_key=${encodeURIComponent(smsApiKey)}&type=text&number=${encodeURIComponent(mobileForSms)}&senderid=${encodeURIComponent(smsSenderId)}&message=${encodeURIComponent(message)}`;
 
-  fetch(apiUrl, { method: 'GET', mode: 'no-cors' })
-    .then(()=>{
-      toast('জমার SMS পাঠানো হয়েছে');
-    })
-    .catch(()=>{
-      toast('SMS পাঠাতে সমস্যা হয়েছে');
-    });
+  // fetch() is blocked on many browsers when this page is opened as a local file (file://),
+  // so we fire the request as an image "pixel" instead - this works from file:// too.
+  // We cannot read BulkSMSBD's actual response this way, so use "টেস্ট SMS পাঠান" in settings
+  // to see the real success/error text from BulkSMSBD when debugging.
+  const pixel = new Image();
+  pixel.src = apiUrl;
+  toast('SMS রিকোয়েস্ট পাঠানো হয়েছে');
 }
 
 function sendCalendarReminder(entry){
@@ -988,6 +1029,7 @@ document.getElementById('addBtn').onclick = () => {
   if(!pledgeDate){ toast('কবে দিবে সেই তারিখ দিন'); return; }
 
   const entry = {
+    id: generateId(),
     serial: entries.length + 1,
     name, mobile, ward, amount,
     paidAmount: 0,
@@ -1105,6 +1147,22 @@ document.getElementById('saveSettings').onclick = async () => {
     toast('সংরক্ষণে সমস্যা হয়েছে');
   }
   document.getElementById('settingsModal').classList.remove('show');
+};
+
+document.getElementById('syncListBtn').onclick = () => {
+  fetchSharedEntries(true);
+};
+
+document.getElementById('testSmsBtn').onclick = () => {
+  const key = document.getElementById('smsApiKeyInput').value.trim();
+  const sender = document.getElementById('smsSenderIdInput').value.trim();
+  const mobile = document.getElementById('smsTestMobileInput').value.trim();
+  if(!key || !sender){ toast('আগে API Key ও Sender ID লিখুন'); return; }
+  const mobileForSms = normalizeMobileForSms(mobile);
+  if(!mobileForSms || mobileForSms.length < 13){ toast('সঠিক মোবাইল নাম্বার দিন'); return; }
+  const message = 'এটি একটি টেস্ট মেসেজ - সদস্য সম্মেলন ২০২৬';
+  const apiUrl = `https://bulksmsbd.net/api/smsapi?api_key=${encodeURIComponent(key)}&type=text&number=${encodeURIComponent(mobileForSms)}&senderid=${encodeURIComponent(sender)}&message=${encodeURIComponent(message)}`;
+  window.open(apiUrl, '_blank');
 };
 
 document.getElementById('summaryBtn').onclick = () => {

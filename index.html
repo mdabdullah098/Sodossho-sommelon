@@ -563,6 +563,7 @@ header h1{
 
 <script>
 let entries = [];
+const DEFAULT_SHEET_URL = "https://script.google.com/macros/s/AKfycbzUSqVn0IOCOxzrAcvVcyAiT89Th2apjViHIJgjEHXATbC7ZPRgIfKCv6EmPq68Qcc/exec";
 let sheetUrl = "";
 let smsApiKey = "";
 let smsSenderId = "";
@@ -673,10 +674,10 @@ async function loadData(){
   entries.forEach(e => { if(!e.id) e.id = generateId(); });
   try{
     const rawUrl = localStorage.getItem('cr_sheetUrl');
-    sheetUrl = rawUrl || "";
+    sheetUrl = rawUrl || DEFAULT_SHEET_URL;
     document.getElementById('sheetUrlInput').value = sheetUrl;
   }catch(e){
-    sheetUrl = "";
+    sheetUrl = DEFAULT_SHEET_URL;
   }
   try{
     smsApiKey = localStorage.getItem('cr_smsApiKey') || "";
